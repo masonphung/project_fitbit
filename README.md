@@ -3,6 +3,7 @@
 ## A data science project working with R
 
 The capstone project of the Google Data Analytics Professional Certificate course
+Data source: https://zenodo.org/records/53894#.YMoUpnVKiP9
 
 ## The repo contains 3 files
 - R Markdown (.rmd) : R language code and notes throughout the analysis process.
