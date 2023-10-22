@@ -1,5 +1,7 @@
 # project_fitbit
 
+[embed]masonphung_fitbit_report.pdf[/embed]
+
 ## A data science project working with R
 
 The capstone project of the Google Data Analytics Professional Certificate course   
