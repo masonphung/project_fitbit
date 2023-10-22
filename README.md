@@ -1,6 +1,6 @@
 # project_fitbit
 
-[embed]masonphung_fitbit_report.pdf[/embed]
+[embed][masonphung_fitbit_report.pdf](https://github.com/masonphung/project_fitbit/blob/6b1720ad035242be6ac225043e2b45816d891856/masonphung_fitbit_report.pdf)[/embed]
 
 ## A data science project working with R
 
