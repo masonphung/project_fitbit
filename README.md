@@ -1,9 +1,9 @@
-# project_fitbit
+# **Mini Project: Fitbit user data analysis using R language**
 
-[embed](https://github.com/masonphung/project_fitbit/blob/6b1720ad035242be6ac225043e2b45816d891856/masonphung_fitbit_report.pdf)[embed]
+![image](https://github.com/masonphung/project_fitbit/assets/131331827/69d50a0d-1427-4b2e-b0ec-a2c40fb64ac0)
+*source: fitbit*
 
 ## A data science project working with R
-
 The capstone project of the Google Data Analytics Professional Certificate course   
 Data source: https://zenodo.org/records/53894#.YMoUpnVKiP9
 
