@@ -1,0 +1,7 @@
+tidyverse
+lubridate
+gridExtra
+reshape2
+ggrepel
+wesanderson
+scales
