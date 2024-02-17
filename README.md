@@ -20,3 +20,4 @@ Data source: https://zenodo.org/records/53894#.YMoUpnVKiP9
 - R Markdown (.rmd) : R language code and notes throughout the analysis process.
 - R Markdown (in PDF): for a quick look to the .rmd file without the need to install RStudio or VSCode
 - Project report (in PDF): The project report including: company & problem summary, data visualization, insights, comments and suggestions. 
+- Case study (in PDF): Questions & Problems explanation
