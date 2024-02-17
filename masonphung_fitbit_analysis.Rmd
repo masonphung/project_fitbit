@@ -8,7 +8,10 @@ output: pdf_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r library}
+
+# I. Load library & datasets
+## 1. Libraries
+```{r library, warning = FALSE, results = 'hide', message = FALSE}
 library(tidyverse) # main function
 library(lubridate) # data format
 library(gridExtra) # grid.arrange() to print many plots together in a same page
@@ -18,38 +21,51 @@ library(wesanderson) # Wes Anderson color palette for plots
 library(scales) # For percent()
 ```
 
-# Load datasets
-```{r load_data, echo = FALSE} 
-raw_daily_activity <- read.csv("/Users/masonphung/Desktop/Marketing Data Science/FitBit analysis/FitBit/data/dailyActivity_merged.csv")
-raw_daily_sleep <- read.csv("/Users/masonphung/Desktop/Marketing Data Science/FitBit analysis/FitBit/data/sleepDay_merged.csv")
 
-raw_hourly_steps <- read.csv("/Users/masonphung/Desktop/Marketing Data Science/FitBit analysis/FitBit/data/hourlySteps_merged.csv")
-raw_hourly_intensities <- read.csv("/Users/masonphung/Desktop/Marketing Data Science/FitBit analysis/FitBit/data/hourlyIntensities_merged.csv")
-raw_hourly_calories <- read.csv("/Users/masonphung/Desktop/Marketing Data Science/FitBit analysis/FitBit/data/hourlyCalories_merged.csv")
+\newpage
+## 2. Load datasets
+Required information
+- Daily data of activity and sleep    
+- Hourly data: steps, intensities, calories   
+- Weight information   
+```{r load_data} 
+raw_daily_activity <- read.csv("datasets/dailyActivity_merged.csv")
+raw_daily_sleep <- read.csv("datasets/sleepDay_merged.csv")
 
-raw_weight_log <- read.csv("/Users/masonphung/Desktop/Marketing Data Science/FitBit analysis/FitBit/data/weightLogInfo_merged.csv")
+raw_hourly_steps <- read.csv("datasets/hourlySteps_merged.csv")
+raw_hourly_intensities <- read.csv("datasets/hourlyIntensities_merged.csv")
+raw_hourly_calories <- read.csv("datasets/hourlyCalories_merged.csv")
+
+raw_weight_log <- read.csv("datasets/weightLogInfo_merged.csv")
 ```
 
-# Clean data
-The data is not yet cleaned, we will observe the datasets, determine problems to clean
+
+\newpage
+# II. Data cleaning
+The data is not yet cleaned, by observing the data, we will determine the place that we need to clean   
+
 ## 1. Merge data
 Hourly group has 3 datasets, based on observation, we can see that all of them have the matched information and data collected time,
 therefore, we will merge all of these 3 hourly datasets into 1 single to make the analysis process more convenient.   
-```{r clean_merge, warning = FALSE}
+```{r clean_merge, warning = FALSE,}
+# Left join hourly data together by Id and ActivityHour
 hourly_activity <- raw_hourly_steps %>%
   left_join(raw_hourly_calories, by = c("Id","ActivityHour")) %>%
   left_join(raw_hourly_intensities, by = c("Id","ActivityHour"))
 
+# Convert the date format of ActivityHour in to mdy_hms
 hourly_activity <- hourly_activity %>%
   mutate(ActivityHour = mdy_hms(ActivityHour))
 
+# Seperate ActivityHour into Date and Hour
 hourly_activity <- hourly_activity %>%
   separate(
     ActivityHour, into = c("ActivityDate", "Hour"), sep= " "
   )
 ```
 
-## 3. Date format cleaning
+\newpage
+## 2. Date format cleaning
 - In the ***Daily activity*** dataset, we will change the date in to the Month-Day-Year format.
 - In the ***Hourly activity***, we will convert all of time format into Month-Day-Year, Hour-Minute-Second.
 - In ***Daily sleep***, because the time was collected with both date and hour, we will divide them
@@ -65,6 +81,7 @@ daily_sleep <- raw_daily_sleep %>%
     mutate(ActivityDate = mdy(ActivityDate)) %>%
     select(-Hour)
 
+# Refine date & time format
 hourly_activity <- hourly_activity %>%
   mutate(
     Hour = ifelse(is.na(Hour), "00:00:00",Hour),
@@ -72,24 +89,38 @@ hourly_activity <- hourly_activity %>%
   )
 ```
 
+Let's take a brief look at the data after merging and date formatting
+```{r clean_date_preview}
+head(raw_daily_activity)
+head(daily_sleep)
+head(hourly_activity)
+```
 
-## 4. Check for NAs and duplicates
+\newpage
+## 3. Check for NAs and duplicates
 
 ### Take a look at the duplicates
-```{r clean_dup_observe}
+```{r clean_dup_sum}
+# Look for duplicates in raw_daily_activity
 sum(duplicated(raw_daily_activity))
+# Look for duplicates in daily_sleep
 sum(duplicated(daily_sleep))
+# Look for duplicates in hourly_activity
 sum(duplicated(hourly_activity))
+```
 
+Take a look at the duplicates in `daily_sleep` and `hourly_activity` dataset
+```{r clean_dup_observe}
 daily_sleep[duplicated(daily_sleep),]
 head(hourly_activity[duplicated(hourly_activity),],10)
 ```
 
-Observation shows that daily_sleep's duplicates are incorrect, therefore, we only remove the detected duplication 
-in the hourly_activity dataset.
+Observation shows that `daily_sleep` duplicates are not actually duplications (each observation shows differences), therefore, we only remove the detected duplication 
+in the `hourly_activity` dataset.
 
 ### Remove duplications
 ```{r clean_dup_clean}
+# Choose only distinct observation
 hourly_activity <- distinct(hourly_activity)
 ```
 
@@ -99,12 +130,12 @@ any(is.na(raw_daily_activity))
 any(is.na(daily_sleep))
 any(is.na(hourly_activity))
 ```
-There was no NA value.   
+There was no NA value left in 3 datasets.   
 
-
-## 5. Add weekdays into the datasets
+\newpage
+## 4. Add weekdays into the datasets
 In later analysis, we will compared the collected data in each weekday, therefore, adding their names into the datasets
-is important.   
+is required.   
 ```{r clean_weekdays}
 daily_activity <- raw_daily_activity %>% 
   mutate(weekday = weekdays(ActivityDate)) %>% 
@@ -131,7 +162,16 @@ hourly_activity <- hourly_activity %>%
   )
 ```
 
-## 6. Remove unnecessary variables
+```{r clean_weekdays_preview, echo = FALSE}
+head(daily_activity)
+head(daily_sleep)
+head(hourly_activity)
+```
+
+\newpage
+## 5. Remove unnecessary variables
+In `daily_acitivity` dataset, `TrackerDistance` and `LoggedActivitiesDistance` are not needed as well as `AverageIntensity` in
+`hourly_activity`. Therefore, they will be removed.
 ```{r clean_remove_var}
 daily_activity <- daily_activity %>%
   select(
@@ -150,6 +190,7 @@ hourly_activity <- hourly_activity %>%
 ```
 
 ## 6. Clean variable name
+Convert the names of the variables into a desired format
 ```{r clean_var_name}
 daily_activity <- daily_activity %>%
   rename(
@@ -189,7 +230,16 @@ hourly_activity <- hourly_activity %>%
 ```
 
 \newpage
-# Data dictionary
+## 7. Final datasets
+```{r clean_final, echo = FALSE}
+head(daily_activity)
+head(daily_sleep)
+head(hourly_activity)
+```
+
+
+\newpage
+# III. Data dictionary
 https://www.fitabase.com/media/1930/fitabasedatadictionary102320.pdf
 
 |     Data header       |                                               Description                                           |
@@ -207,21 +257,18 @@ https://www.fitabase.com/media/1930/fitabasedatadictionary102320.pdf
 | moderate_active_min   | Total time travelled in moderate active activity (minutes)                                          |
 | light_active_min      | Total time travelled in light active activity (minutes)                                             |
 | seden_active_min      | Total time travelled in sedentary active activity (minutes)                                         |
-| calories              | Total estimated energy expenditure (kilocalories)                                                   |
-| sleep_record          | Number of minutes classified as being "asleep"                                                      |
+| calories              | Total estimated energy expenditure (kil ocalories)                                                   |
+| sleep_record          | Number of time classified as being "asleep"                                                      |
 | asleep_min            | Total of minutes classified as being "asleep"                                                       |
 | in_bed_min            | Total time in bed, including asleep, restless and awake, that occured during a defined sleep record |
 | hour                  | Hour value in 24hr format                                                                           |
 | total_intensity       | Value calculated by adding all the minute-level intensity values that occured within the hour       |
 
-\newpage
-# Summarize data statistics
-```{r summary_raw_data}
-daily_activity %>%
-  mutate(id = as.factor((id))) %>%
-  summary()
-```
 
+
+\newpage
+# IV. Summarize data statistics
+## 1. Number of records in each dataset
 ```{r summary_id}
 daily_activity_distinct_id = n_distinct(daily_activity$id)
 daily_sleep_distinct_id = n_distinct(daily_sleep$id)
@@ -233,32 +280,57 @@ hourly_activity_distinct_id
 ```
 There are 35 distinct users in activity dataset, while only 24 users in daily sleep data. 
 
-\newpage
-# Analysis - data summary stats
-### Take a look at the means of the variable
-```{r analysis_day_activity_mean}
-options(scipen = 999)
-
+## 2. Statistical summaries
+### A. Daily activity
+```{r summary_daily_activity}
 daily_activity %>%
-  ungroup()%>%
-  select(-c(id,weekday, date))%>%
-  summarize_all(mean)
+  mutate(id = as.factor((id))) %>%
+  summary()
 ```
-- The average step taken per day is 7638 steps and the calories burned per day on average 
-is 2304 kcal, which are considered to be high for an adult. These number suggest that the audience 
-can be office workers who care for walk/exercise after work.   
-- The data also shows a high amount of distance and time spent for **light activity**, which can be a 
-point for R&D dept to focus on and develop future features to fit this tendency of usage.   
+**Insights**   
+- Users took 7281 steps or 5,2 km daily in average. 
+Which are considered to be [low active for an average adult](https://www.10000steps.org.au/articles/healthy-lifestyles/counting-steps/).   
+- Light activity was recorded in most of the time & distance travelled (285 mins and 3.2km average)   
+
+### B. Daily sleep
+```{r summary_daily_sleep}
+daily_sleep %>%
+  mutate(id = as.factor((id))) %>%
+  summary()
+```
+**Insights**   
+- User sleeps 520 mins daily ~ 7 hours a day   
+- Max sleeping time recored to be 796 mins ~ 13 hours in a single day      
+
+### C. Hourly activity
+```{r summary_hourly_activity}
+hourly_activity %>%
+  mutate(id = as.factor((id))) %>%
+  summary()
+```
+**Insights**   
+- The significant difference between the max value of `total_step`, `calories` and `total_intensity` suggests that 
+there are possibly a group of users that are far more active compared to the average users   
+
 
 \newpage
-# Analysis - Usage time and using habits
+# V. Exploratory Descriptive Analysis (EDA) - by each dataset
 ## 1. Daily activity
-### Determine using frequency
+### A. Determine using frequency
+The data possess users usage data of a period of 62 days. We will divide the users into different categories 
+based on their device total using day:   
+- 0-12 days: Rarely   
+- 13-30 days: Sometimes   
+- 31-46 days: Often   
+- 47-61 days: Usually   
+- 62 days: Always   
+Note: The frequency table is based on [Reverso dictionary](https://grammar.reverso.net/frequency/)
 ```{r group_use_freq}
-daily_activity <- daily_activity %>%
-  group_by(id) %>%
-  mutate(
-    total_using_day = sum(n_distinct(date))
+# Determine total using day and usage frequency of each ID
+freq_count <- daily_activity %>%
+  group_by(id)%>%
+  summarize(
+    total_using_day = n_distinct(date)
   )%>%
   mutate(
     usage_frequency = case_when(
@@ -279,6 +351,11 @@ daily_activity <- daily_activity %>%
       )
     )
   )
+
+# Determine the number of user in each usage frequency
+freq_count %>%
+  group_by(usage_frequency)%>%
+  count()
 ```
 
 Using frequency
@@ -289,7 +366,7 @@ Using frequency
 - Always use users (1 people, 100% of 62 days)   
 
 \newpage
-### Daily average activity time distribution
+### B. Daily average activity time distribution
 ```{r analysis_day_activity_type}
 a1 <- daily_activity %>%
   summarize(
@@ -420,15 +497,16 @@ grid.arrange(
   top = "Daily average activity time distribution (in minutes)"
 )
 ```
-- On average, 82.9% of the time was spent in sedentary while people only active in 17.1% daily.   
-- When in active, only 19 minutes of the day are used for very active activities, 15 for moderate activities while light active 
-activities take 182 mins (3 hours 2 mins).   
+   
+- On average, 82% of the time was spent in sedentary while people only active in 18% daily.   
+- When in active, only 20 minutes of the day are used for very active activities, 13 for moderate activities while light active 
+activities take 185 mins (3 hours 5 mins).   
 
 The tracker's main feature is to measure the ***total steps taken***, therefore we can assume that their is always a strong 
 positive relationship between ***total steps taken*** and the ***total distance travelled/ total calories burned***.   
 
 \newpage
-### Correlation: Relationship between total steps taken and active type
+### C. Correlation: Relationship between total steps taken and active type
 ```{r analysis_day_step_activity, fig.height = 12}
 # Total steps vs very active distance
 g1 <- daily_activity %>%
@@ -436,14 +514,25 @@ g1 <- daily_activity %>%
     aes(
       x = very_active_dist,
       y = total_step,
+      color = very_active_dist
     )
   )+
   geom_jitter(
+  )+
+  scale_color_gradientn(
+    colors = wes_palette(
+      name = "Royal1",
+      n = 2
+    )
   )+
   labs(
     x = "Very active distance",
     y = "Total steps taken",
     title = "Steps & very active dist"
+  )+
+  theme_minimal()+
+  theme(
+    legend.position = 'none'
   )
 
 
@@ -453,14 +542,25 @@ g2 <- daily_activity %>%
     aes(
       x = moderate_active_dist,
       y = total_step,
+      color = moderate_active_dist
     )
   )+
   geom_jitter(
+  )+
+  scale_color_gradientn(
+    colors = wes_palette(
+      name = "Royal1",
+      n = 2
+    )
   )+
   labs(
     x = "Moderately active distance",
     y = "Total steps taken",
     title = "Steps & moderately active dist"
+  )+
+  theme_minimal()+
+  theme(
+    legend.position = 'none'
   )
 
 # Total steps vs light active distance
@@ -469,14 +569,31 @@ g3 <- daily_activity %>%
     aes(
       x = light_active_dist,
       y = total_step,
+      color = light_active_dist
     )
   )+
   geom_jitter(
+  )+
+  scale_color_gradientn(
+    colors = rev(wes_palette(
+      name = "Moonrise1",
+      n = 3
+    ))
+  )+
+  scale_color_gradientn(
+    colors = wes_palette(
+      name = "Royal1",
+      n = 2
+    )
   )+
   labs(
     x = "Lightly active distance",
     y = "Total steps taken",
     title = "Steps & lightly active dist"
+  )+
+  theme_minimal()+
+  theme(
+    legend.position = 'none'
   )
 
 # Total steps vs sedentary active distance
@@ -485,14 +602,25 @@ g4 <- daily_activity %>%
     aes(
       x = seden_active_dist,
       y = total_step,
+      color = seden_active_dist
     )
   )+
   geom_jitter(
+  )+
+  scale_color_gradientn(
+    colors = wes_palette(
+      name = "Royal1",
+      n = 2
+    )
   )+
   labs(
     x = "Sedentary active distance",
     y = "Total steps taken",
     title = "Steps & sedentary active dist"
+  )+
+  theme_minimal()+
+  theme(
+    legend.position = 'none'
   )
 
 
@@ -502,14 +630,25 @@ g5 <- daily_activity %>%
     aes(
       x = very_active_min,
       y = total_step,
+      color = very_active_min
     )
   )+
   geom_jitter(
+  )+
+  scale_color_gradientn(
+    colors = wes_palette(
+      name = "Royal1",
+      n = 2
+    )
   )+
   labs(
     x = "Very active time",
     y = "Total steps taken",
     title = "Steps & very active time"
+  )+
+  theme_minimal()+
+  theme(
+    legend.position = 'none'
   )
 
 # Total steps vs moderate active time
@@ -518,14 +657,25 @@ g6 <- daily_activity %>%
     aes(
       x = moderate_active_min,
       y = total_step,
+      color = moderate_active_min
     )
   )+
   geom_jitter(
+  )+
+  scale_color_gradientn(
+    colors = wes_palette(
+      name = "Royal1",
+      n = 2
+    )
   )+
   labs(
     x = "Moderately active time",
     y = "Total steps taken",
     title = "Steps & moderately active time"
+  )+
+  theme_minimal()+
+  theme(
+    legend.position = 'none'
   )
 
 # Total steps vs light active time
@@ -534,14 +684,25 @@ g7 <- daily_activity %>%
     aes(
       x = light_active_min,
       y = total_step,
+      color = light_active_min
     )
   )+
   geom_jitter(
+  )+
+  scale_color_gradientn(
+    colors = wes_palette(
+      name = "Royal1",
+      n = 2
+    )
   )+
   labs(
     x = "Lightly active time",
     y = "Total steps taken",
     title = "Steps & lightly active time"
+  )+
+  theme_minimal()+
+  theme(
+    legend.position = 'none'
   )
   
 
@@ -551,14 +712,25 @@ g8 <- daily_activity %>%
     aes(
       x = seden_active_min,
       y = total_step,
+      color = seden_active_min
     )
   )+
   geom_jitter(
+  )+
+  scale_color_gradientn(
+    colors = wes_palette(
+      name = "Royal1",
+      n = 2
+    )
   )+
   labs(
     x = "Sedentary active time",
     y = "Total steps taken",
     title = "Steps & sedentary active time"
+  )+
+  theme_minimal()+
+  theme(
+    legend.position = 'none'
   )
 
 grid.arrange(
@@ -578,7 +750,7 @@ This information suggests that the customers mainly are normal people/workers. M
 active distance proves that they may still take daily walk or other moving exercises.
 
 \newpage
-### Steps by weekday
+### D. Steps by weekday
 ```{r analysis_day_activity_steps_date, fig.height = 8}
 h1 <- daily_activity %>%
   group_by(weekday) %>%
@@ -596,6 +768,7 @@ h1 <- daily_activity %>%
     show.legend = FALSE
   )+
   labs(
+    title = "Steps taken variation each day",
     y = "Total step"
   )+
   scale_color_manual(
@@ -621,7 +794,7 @@ h2 <- daily_activity %>%
     show.legend = FALSE
   )+
   labs(
-    title = "Average steps taken during a week",
+    title = "Average steps taken each day",
     y = "Average steps"
   )+
   scale_fill_manual(
@@ -633,9 +806,10 @@ h2 <- daily_activity %>%
 grid.arrange(
   h1, h2,
   nrow = 2,
-  top = "Steps distribution on weekday"
+  top = "Steps distribution each day in a week"
 )
 ```
+   
 Aside from working days, when people are active overally, it is noticable that:   
 - A significant larger amount of steps on Saturday: Possibly due to users usually spend more time outside, which may leads to more steps taken   
 - A large drop on steps taken on Sunday: Could be a day off in the week when people spend most of the time rest/indoor.   
@@ -643,7 +817,7 @@ Aside from working days, when people are active overally, it is noticable that:
 
 \newpage
 ## 2. Daily sleep
-### Take a look at the means of the variable
+### A. Take a look at the means of the variable
 ```{r analysis_day_sleep_mean}
 options(scipen = 999)
 
@@ -652,25 +826,26 @@ daily_sleep %>%
   select(-c(id,weekday, date, sleep_record))%>%
   summarize_all(mean)
 ```
+   
 Average time asleep for a day is 420 minutes ~ 7 hours while, 
 average time in bed of the participants is 459 minutes ~ 7 hour 39 mins. 
 This means that aside from sleep, people spend another 39 minutes on average in bed.
 
 \newpage
-### Correlation: Relationship between total minute asleep vs total time in bed
+### B. Correlation: Relationship between total minute asleep vs total time in bed
 ```{r analysis_day_sleep_compare_assleep_inbed}
 daily_sleep %>%
   ggplot(
     aes(
       x = asleep_min,
       y = in_bed_min,
-      fill = asleep_min
+      color = asleep_min
     )
   )+
   geom_jitter(  
   )+
-  scale_fill_gradientn(
-    colours = rev(wes_palette(
+  scale_color_gradientn(
+    colors = rev(wes_palette(
       name = "Moonrise1",
       type = "continuous"
     ))
@@ -678,14 +853,16 @@ daily_sleep %>%
   labs(
     x = "Total time asleep",
     y = "Total time in bed",
+    color = "Asleep time",
     title = "The relationship between the time in bed and time asleep"
   )
 ```
+   
 From the graph, we can see the relationship between total time asleep and time in bed, 
-this shows that participants are likely to..sleep when they are in bed.
+this shows that participants are likely to..sleep when they are in bed (and not do other activities).
 
 \newpage
-### Average amount of time asleep and in bed in a week
+### C. Average amount of time asleep and in bed in a week
 ```{r analysis_day_sleep_time_week, fig.height = 12}
 f1 <- daily_sleep %>%
   group_by(
@@ -710,8 +887,7 @@ f1 <- daily_sleep %>%
   geom_bar(
     color = "black",
     stat = "identity",
-    position = position_dodge(),
-    show.legend = FALSE
+    position = position_dodge()
   )+
   geom_text(
     aes(
@@ -727,15 +903,21 @@ f1 <- daily_sleep %>%
     values = wes_palette(
       name = "Moonrise1",
       n = 2
-    )
+    ),
+    labels = c('Asleep','In bed')
   )+
   labs(
     title = "Daily average amount of time asleep and in bed",
     subtitle = "In a week",
     x = "Weekday",
-    y = "Time(minute)"
+    y = "Time(minute)",
+    fill = ''
+
   )+
-  theme_minimal()
+  theme_minimal()+
+  theme(
+    legend.position = 'bottom'
+  )
 
 
 daily_sleep_summary <- daily_sleep %>%
@@ -744,13 +926,13 @@ daily_sleep_summary <- daily_sleep %>%
     in_bed_min = mean(in_bed_min)
   )%>%
   mutate(
-    not_asleep = in_bed_min - asleep_min
+    non_asleep = in_bed_min - asleep_min
   )
 
 
 f2 <- data.frame(
-  label = c("In Bed", "Asleep"),
-  value = c(daily_sleep_summary$in_bed_min, daily_sleep_summary$not_asleep)
+  label = c("In Bed - Not asleep", "In Bed - Asleep"),
+  value = c(daily_sleep_summary$non_asleep, daily_sleep_summary$asleep_min)
   )%>%
   ggplot(
     aes(
@@ -770,10 +952,11 @@ f2 <- data.frame(
   )+
   labs(
     title = "Percentage of asleep time relative to in bed time",
-    fill = "") +
+    fill = ""
+  )+
   scale_fill_manual(
     values = wes_palette(
-      name = "Moonrise1"
+      name = "Moonrise2"
     )
   )+
   geom_label(
@@ -781,12 +964,16 @@ f2 <- data.frame(
       label = percent(value / sum(value)),
       y = value
     ),
-    hjust = c(-0.5,2.4),
-    vjust = c(7.5,0),
+    hjust = c(1,1),
+    vjust = c(-1,7.5),
     color = "black",
-    size = 4
+    size = 4,
+    show.legend = FALSE
   )+
-  theme_void()
+  theme_void()+
+  theme(
+    legend.position = 'bottom'
+  )
 
 
 grid.arrange(
@@ -803,7 +990,7 @@ Observing the plot, it's noticable that:
 and 452 mins ~ 7 hours 32 mins sleep.   
 
 \newpage
-## 3. Hourly activity
+## 3. Hourly activity: Average distribution of steps, calories, intensity
 ### Average step distribution using bar graph and heatmap
 ```{r analysis_hour_act_step_bar}
 d1 <- hourly_activity %>%
@@ -818,10 +1005,11 @@ d1 <- hourly_activity %>%
     )
   )+
   labs(
+    title = "Average steps distribution",
     subtitle = "In a day",
     x = "Time",
     y = "Steps",
-    fill = "Calories"
+    fill = "Total steps"
   )+
   scale_fill_gradientn(
     colors = wes_palette(
@@ -852,10 +1040,11 @@ d2 <- hourly_activity %>%
     ) 
   )+
   labs(
+    title = '',
     subtitle = "In a week",
     x = "Weekday",
     y = "Time",
-    fill = "Total Step"
+    fill = "Total steps"
   )+
   theme_classic(
   )+
@@ -876,16 +1065,17 @@ d3 <- hourly_activity %>%
     )
   )+
   labs(
+    title = "Average calories distribution",
     subtitle = "In a day",
     x = "Time",
     y = "Calories",
     fill = "Calories"
   )+
   scale_fill_gradientn(
-    colors = wes_palette(
-      name = "Zissou1",
-      n = 5
-    ) 
+    colors = rev(wes_palette(
+      name = "Moonrise1",
+      n = 3
+    ))
   )+
   theme_classic(
   )+
@@ -904,12 +1094,13 @@ d4 <- hourly_activity %>%
     aes(fill= calories)
   )+
   scale_fill_gradientn(
-    colors = wes_palette(
-      name = "Zissou1",
-      n = 5
-    ) 
+    colors = rev(wes_palette(
+      name = "Moonrise1",
+      n = 3
+    ))
   )+
   labs(
+    title = '',
     subtitle = "In a week",
     x = "Weekday",
     y = "Time",
@@ -934,6 +1125,7 @@ d5 <- hourly_activity %>%
     )
   )+
   labs(
+    title = "Average intensity distribution",
     subtitle = "In a day",
     x = "Time",
     y = "Total intensity",
@@ -941,9 +1133,9 @@ d5 <- hourly_activity %>%
   )+
   scale_fill_gradientn(
     colors = wes_palette(
-      name = "Zissou1",
-      n = 5
-    ) 
+      name = "AsteroidCity1",
+      n = 3
+    )
   )+
   theme_classic(
   )+
@@ -963,11 +1155,12 @@ d6 <- hourly_activity %>%
   )+
   scale_fill_gradientn(
     colors = wes_palette(
-      name = "Zissou1",
-      n = 5
-    ) 
+      name = "AsteroidCity1",
+      n = 3
+    )
   )+
   labs(
+    title = '',
     subtitle = "In a week",
     x = "Weekday",
     y = "Time",
@@ -981,8 +1174,7 @@ d6 <- hourly_activity %>%
 ```{r analysis_hour_all, echo = FALSE, fig.height = 12}
 grid.arrange(
   d1,d2,d3,d4,d5,d6,
-  nrow = 3,
-  top = "Average steps, calories, intensity distribution"
+  nrow = 3
 )
 ```
    
@@ -994,13 +1186,18 @@ workouts and also people may move more to prepare for their dinner).
 and still having the same rest time at the end of the day.   
 - The heat maps suggest the active pattern of normal office workers   
 
+
 \newpage
-# Analysis - by dividing users into groups
+# VI. EDA - by dividing users into groups
 ## Adding user segmentation by steps and using frequency
+We will divide the users into 3 groups:   
+- 1st group: Daily average steps taken less than 5000   
+- 2nd group: Daily average steps taken from 5000 - 10000   
+- 3rd group: Daily average steps taken more than 10000   
 ```{r segment}
 daily_activity <- daily_activity %>%
   group_by(id)%>%
-  mutate(avg_step = mean(total_step)) %>%
+  mutate(avg_step = mean(total_step))%>%
   mutate(
     group = case_when(
       0 <= avg_step & avg_step < 5000 ~ "1",
@@ -1028,7 +1225,9 @@ step_count <- daily_activity %>%
     )
   )%>%
   mutate(
-    group = factor(group, levels = c("0-5,000 steps","5,000-10,000 steps","More than 10,000 steps")
+    group = factor(
+      group, 
+      levels = c("0-5,000 steps","5,000-10,000 steps","More than 10,000 steps")
     )
   )
 
@@ -1054,10 +1253,7 @@ step_count %>%
     "y"
   )+
   scale_fill_manual(
-    values = wes_palette(
-    n = 3,
-    name = "Royal1"
-    ) 
+    values = c('#086c9c','#49997c','#ae3918') 
   )+
   geom_label_repel(
     aes(
@@ -1068,15 +1264,17 @@ step_count %>%
     show.legend = FALSE
   )+
   labs(
-    title = "Daily average steps distribution",
+    title = "Users daily average steps group distribution",
     x = "", 
     y = "",
     fill = "Steps taken"
   )+
   theme_void()
 ```
+   
 Based on the visualization, we can observe that there is only 7 people (23,3%) possess an average daily step of more than 10,000 while 28 people have 
 less than 10,000 steps a day.
+
 
 ## Group 1: Take less than 5,000 steps on daily average
 ### Average steps by weekday
@@ -1115,7 +1313,7 @@ daily_activity %>%
   )+
   scale_fill_gradient(
     low = "grey",
-    high = "#027ab0"
+    high = "#086c9c"
   )+
   labs(
     x = "Weekday",
@@ -1124,6 +1322,10 @@ daily_activity %>%
   )+
   theme_classic()
 ```
+   
+There is no significant difference observed. The average steps taken of users in this group varies from 
+3.2k to 4k steps a day.   
+   
 \newpage
 ### Step heatmap
 ```{r segment_g1}
@@ -1156,10 +1358,10 @@ segment %>%
   )+
   scale_fill_gradient(
     low = "white",
-    high = "#027ab0"
+    high = "#086c9c"
   )+
   labs(
-    subtitle = "Daily average steps",
+    subtitle = "Average steps heatmap",
     x = NULL,
     y = NULL,
     fill = "Total step"
@@ -1168,8 +1370,17 @@ segment %>%
   )+
   theme(axis.text.x = element_text(angle = 90))
 ```
+   
+- There are more steps during meal time (around noon, from 18-19h).   
+- There is a difference between step pattern of weekdays and the weekend. People tend to walk in a shorter 
+time range in the weekend.   
+- Traces show that users in this group also walk during late night.    
+- There is no clear step pattern observed. This may suggests that the 
+users did not have a solid active schedule, and the time varies randomly.      
+
 \newpage
-### Activity type
+### Total active vs sedentary time
+Note that active time equals to the total of light, moderate and very active time
 ```{r segment_g1_act_type}
 daily_activity %>%
   filter(
@@ -1231,19 +1442,57 @@ daily_activity %>%
     show.legend = FALSE
   )+
   scale_fill_manual(
-    values =  c("lightgrey","#027ab0")
+    values =  c("lightgrey","#086c9c")
   )+
   labs(
     x = "",
     y = "",
     fill = "Activity type",
-    title = "Active time"
+    title = "Total active vs sedentary time"
   )+
   theme_void()
 ```
+   
+Users in group 1 in active for 138 minutes a day ~ 2 hours. Which is a extremely small number compared to 
+sedentary time.
+   
 \newpage
-### Using frequency
+### Average total device using days in the whole period
+The data possess users usage data of a period of 62 days. We will divide the users into different categories 
+based on their device total using day:   
+- 0-12 days: Rarely   
+- 13-30 days: Sometimes   
+- 31-46 days: Often   
+- 47-61 days: Usually   
+- 62 days: Always   
+Note: The frequency table is based on [Reverso dictionary](https://grammar.reverso.net/frequency/)
 ```{r segment_g1_freq}
+# Attach total using day count and usage frequency type to each observation
+daily_activity <- daily_activity %>%
+  group_by(id)%>%
+  mutate(
+    total_using_day = n_distinct(date)
+  )%>%
+  mutate(
+    usage_frequency = case_when(
+      0 < total_using_day & total_using_day < 13 ~ "Rarely",
+      13 <= total_using_day & total_using_day < 31 ~ "Sometimes",
+      31 <= total_using_day & total_using_day  < 47 ~ "Often",
+      47 <= total_using_day & total_using_day < 62 ~ "Usually",
+      total_using_day == 62 ~ "Always"
+    ),
+    usage_frequency = factor(
+      usage_frequency, 
+      levels = c(
+        "Rarely",
+        "Sometimes",
+        "Often",
+        "Usually",
+        "Always"
+      )
+    )
+  )
+
 daily_activity %>%
   filter(
     group == 1
@@ -1255,6 +1504,9 @@ daily_activity %>%
     avg_using_day = mean(total_using_day)
   )
 ```
+   
+The group has an average total device using day of 36.2, which can be considered as 'Often'.
+
 \newpage
 ### Distance travelled
 ```{r segment_g1_dist}
@@ -1293,7 +1545,9 @@ daily_activity %>%
     total_time = round(total_time, 2)
   )
 ```
-
+   
+User group 1 has an average active distance of 2.15km
+   
 \newpage
 ## Group 2: Take from 5,000 - 10,000 steps on daily average
 ### Average steps by weekday
@@ -1341,6 +1595,10 @@ daily_activity %>%
   )+
   theme_classic()
 ```
+   
+- Group 2 users has an average steps from 7.5k-8.5k in weekdays and Saturday. There is a considerable decrease on Sunday.   
+- Compared to group 1, this is a quite big difference (around 3-4k/day)   
+
 \newpage
 ### Step heatmap
 ```{r segment_g2}
@@ -1371,7 +1629,7 @@ segment %>%
     high = "#49997c"
   )+
   labs(
-    subtitle = "Daily average steps",
+    subtitle = "Average steps heatmap",
     x = NULL,
     y = NULL,
     fill = "Total step"
@@ -1381,8 +1639,15 @@ segment %>%
   theme(axis.text.x = element_text(angle = 90))
 
 ```
+   
+- The heatmap seems to have a clearer step pattern. Users tend to starts their walk from 
+6:00 daily and rest before midnight.   
+- During weekdays, it visible that users walk more during meal time (12-13h and 18-19h).   
+- In the weekend, the starting time, however, is later at around 8:00.   
+
 \newpage
-### Activity type
+### Total active vs sedentary time
+Note that active time equals to the total of light, moderate and very active time
 ```{r segment_g2_act_type}
 daily_activity %>%
   filter(
@@ -1450,12 +1715,16 @@ daily_activity %>%
     x = "",
     y = "",
     fill = "Activity type",
-    title = "Active time"
+    title = "Total active vs sedentary time"
   )+
   theme_void()
 ```
+   
+- Users were active for 248 mins ~ 4.13 hours a day. This is almost doubled 
+group 1 users. 
+   
 \newpage
-### Using frequency
+### Average total device using days in the whole period
 ```{r segment_g2_freq}
 daily_activity %>%
   filter(
@@ -1468,6 +1737,10 @@ daily_activity %>%
     avg_using_day = mean(total_using_day)
   )
 ```
+   
+The group has an average total device using day of 40.4, which can be 
+considered as 'Often'.   
+
 ### Distance travelled
 ```{r segment_g2_dist}
 daily_activity %>%
@@ -1505,7 +1778,10 @@ daily_activity %>%
     total_time = round(total_time, 2)
   )
 ```
-
+   
+User group 2 has an average active distance of 5.42km. Notice that this 
+is *2.52* times more than the distance of user group 1 (2.15km).   
+   
 \newpage
 ## Group 3: Take more than 10,000 steps on daily average
 ### Average steps by weekday
@@ -1553,6 +1829,13 @@ daily_activity %>%
   )+
   theme_classic()
 ```
+   
+- Group 3 users has an extremely high average daily steps taken of least to 
+be 11.8k and highest to be 13.3k.   
+- The stats is about 1.5 times bigger than group 2 and triple times bigger than 
+group 1.   
+
+   
 \newpage
 ### Step heatmap
 ```{r segment_g3}
@@ -1577,7 +1860,7 @@ segment %>%
     high = "#ae3918"
   )+
   labs(
-    subtitle = "Daily average steps",
+    subtitle = "Average steps heatmap",
     x = NULL,
     y = NULL,
     fill = "Total step"
@@ -1587,8 +1870,13 @@ segment %>%
   theme(axis.text.x = element_text(angle = 90))
 
 ```
+   
+- A clear heat pattern from 6h(weekdays) and 7h(weekend) can be observed.   
+- Users tend to walk a lot on Saturday morning and from 18-19h weekdays.   
+
+   
 \newpage
-### Activity type
+### Total active vs. sedentary time
 ```{r segment_g3_act_type}
 daily_activity %>%
   filter(
@@ -1656,12 +1944,16 @@ daily_activity %>%
     x = "",
     y = "",
     fill = "Activity type",
-    title = "Active time"
+    title = "Total active vs. sedentary time"
   )+
   theme_void()
 ```
+   
+- Users stay active for an average of 291 mins a day ~ 4.85 hours daily.   
+- This is not significantly longer compared to group 2.   
+   
 \newpage
-### Using frequency
+### Average total device using days in the whole period
 ```{r segment_g3_freq}
 daily_activity %>%
   filter(
@@ -1674,6 +1966,10 @@ daily_activity %>%
     avg_using_day = mean(total_using_day)
   )
 ```
+   
+The group has an average total device using days of 42.3, which can be 
+considered as 'Often' (similar to the other 3 groups).   
+   
 \newpage
 ### Distance travelled
 ```{r segment_g3_dist}
@@ -1712,3 +2008,61 @@ daily_activity %>%
     total_time = round(total_time, 2)
   )
 ```
+   
+User group 3 has an average active distance of 9.06km. 
+This is a significantly larger number compared to group 1 and group 2.   
+
+
+
+# VII. Conclusion
+**1. Users**
+- Device usage frequency: By tracking the device total using days in the periods, most users are considered as 
+'Often' users.
+  - 28 people (80%) are 'Often' users
+  - Even based on different steps taking user groups, the average device total using days 
+  is still in the 'Often' frequency range.   
+
+- User grouping: Most users take less than 10,000 steps daily 
+(from around 4k to 7k steps daily). This shows that most users are normal adults who don't 
+have intesive working/training schedule.   
+  - Group 1: Users were active in an disordered schedule. Have least walking steps, travel distance 
+  and active time. Adults who are not very active and are not exercising frequently.   
+  - Group 2: Users were active in a more ordered schedule. Have a decent number of steps daily 
+  at around. Adults but tends to workout frequently and more active compared to G1.   
+  - Group 3: Most active users. Possesses extremely intensive activity stats. 
+  Adults who always walk/exercising.
+
+
+**2. Daily active time distribution**
+- People spend most of their time (82%) sedentary, 18% active.   
+- In active time, most of the time are for light activities (84% of active time). 
+- High intensity % calories burnt observed during 17-19h on weekdays, this suggests that users usually workout 
+during this time period. Similar insights can be found on Saturday morning.       
+- Significantly high steps count are found on weekends and on meal time.    
+
+
+**4. Distribution in a week**
+- Similar activities in weekdays   
+- Usually higher activities on Saturday   
+- Less active on Sunday   
+
+
+**5. Sleep**
+- People sleep more on weekends.   
+- 9% of the time in bed are not for sleep, this suggest that they may do other activities 
+such as watching TV, using mobile phones, reading, ...    
+
+
+
+# VIII. Suggestions
+• Provide new tracking modes for different types of activities.       
+• High amount of time not wearing the tracker shows that users may not feel comfortable with the design and consider.   
+• Create different user profiles, features for different user groups from less active to very active users.   
+• Aside from sedentary activities, create new feature for light activities as it takes 84% of all the average activities in a day.   
+• Create a guide or an auto-bot to as an assistant to help reminding, scheduling and reporting.   
+• Provide health reports.   
+• Day-end report: people usually spend some time to relax, restless before sleep, so we can provide a report of their health status during the day.   
+• Week-end report on Sunday when people usually spend their time to rest, be less active and may want to take a look of what had happened through out the week.   
+• Encourage users to be more active by adding:   
+  • Reward system: game or an experience count system with level-up mechanism.   
+  • Notifications: regular reminds customers to encourage them to be more active.   
