@@ -13,7 +13,7 @@ Data source: https://zenodo.org/records/53894#.YMoUpnVKiP9
 - Data visualization with `ggplot2`
   - Multiple plots with `gridExtra`
   - Dynamic labeling with `ggrepel`
-  - Custome color palette `wesanderson`
+  - Custom color palette `wesanderson`
 - Date formatting with `lubridate`.
 
 ## THE REPO CONTAINS 3 FILES
