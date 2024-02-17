@@ -15,7 +15,6 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse) # main function, manipulate data
 library(lubridate) # date format
 library(gridExtra) # grid.arrange() to print many plots together in a same page
-library(reshape2) # Data transformation
 library(ggrepel) # For displaying plot's labels outside of the chart
 library(wesanderson) # Wes Anderson color palette for plots
 library(scales) # For percent()
